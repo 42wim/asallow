@@ -15,8 +15,16 @@ import (
 const PREFIX_URI="https://stat.ripe.net/data/announced-prefixes/data.json?resource="
 
 var ipset_count int = 0
+var ipset_string string = ""
 
-func readconfig(cfgfile string) []string {
+type cfg struct {
+    Main struct {
+        Allow []string
+        ASN []string
+    }
+}
+
+func readconfig(cfgfile string) cfg {
 	data, err := ioutil.ReadFile(cfgfile)
     if err != nil {
         log.Fatal(err)
@@ -25,13 +33,14 @@ func readconfig(cfgfile string) []string {
 	cfg := struct {
 		Main struct {
 			Allow []string
+            ASN []string
 		}
 	}{}
 	err = gcfg.ReadStringInto(&cfg, cfgStr)
 	if err != nil {
 		log.Fatal("Failed to parse "+ cfgfile +":",err)
 	}
-	return cfg.Main.Allow
+	return cfg
 }
 
 func getAS(ASnumber string) []byte  {
@@ -46,7 +55,7 @@ func getAS(ASnumber string) []byte  {
     return body
 }
 
-func doipset(ipset_string string) {
+func doipset() {
 	cmd := exec.Command("ipset", "-!", "create", "AS_allow", "hash:net", "comment")
 	err := cmd.Run()
     if err != nil {
@@ -72,8 +81,7 @@ func doipset(ipset_string string) {
     cmd.Run()
 }
 
-func parseBody(body []byte, ASnumber string) string {
-    ipset_string := ""
+func parseBody(body []byte, ASnumber string) {
 	dec := json.NewDecoder(strings.NewReader(string(body)))
 	var mapstring map[string]interface{}
 	if err := dec.Decode(&mapstring); err != nil {
@@ -90,26 +98,25 @@ func parseBody(body []byte, ASnumber string) string {
 			ipset_count += 1
 		}
 	}
-    return ipset_string
 }
 
-func addAllowed(ipset_string string,allowed []string) string {
+func addAllowed(allowed []string) {
 	for _, el := range allowed {
 		ipset_string += "add AS_allow_swap " + el + " comment \"read from asallow.conf\"\n"
 	}
-    return ipset_string
 }
 
 func main() {
-	ASnumber := flag.String("ASN", "42", "an valid AS number")
     cfgfile := flag.String("conf","asallow.conf","a valid config file")
 	flag.Parse()
 
-	allowed := readconfig(*cfgfile)
-    body := getAS(*ASnumber)
-    ipset_string := parseBody(body,*ASnumber)
-    ipset_string = addAllowed(ipset_string,allowed)
-    doipset(ipset_string)
+	cfg := readconfig(*cfgfile)
+    for _,ASN := range cfg.Main.ASN {
+        body := getAS(ASN)
+        parseBody(body,ASN)
+    }
+    addAllowed(cfg.Main.Allow)
+    doipset()
 
 	fmt.Printf("%v ip addresses added\n", ipset_count)
 }
