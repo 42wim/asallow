@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -61,23 +62,23 @@ func doipset() {
 	cmd := exec.Command("ipset", "-!", "create", "AS_allow", "hash:net", "comment")
 	err := cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("ipset failed to execute ipset -! create AS_allow hash:net comment")
 	}
 	cmd = exec.Command("ipset", "-!", "create", "AS_allow_swap", "hash:net", "comment")
 	cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("ipset failed to execute ipset -! create AS_allow_swap hash:net comment")
 	}
 	cmd = exec.Command("ipset", "-!", "restore")
 	cmd.Stdin = strings.NewReader(ipset_string)
 	err = cmd.Run()
 	if err != nil {
-		log.Fatal("ip addresses could not be added", err)
+		log.Fatal("ipset restore failed", err)
 	}
 	cmd = exec.Command("ipset", "swap", "AS_allow", "AS_allow_swap")
 	cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("ipset could not swap AS_allow with AS_allow_swap")
 	}
 	cmd = exec.Command("ipset", "destroy", "AS_allow_swap")
 	cmd.Run()
@@ -112,6 +113,9 @@ func addAllowed(allowed []string) {
 }
 
 func main() {
+	if os.Geteuid() != 0 {
+		log.Fatal("This needs to be run as root")
+	}
 	cfgfile := flag.String("conf", "asallow.conf", "a valid config file")
 	flag.Parse()
 	sc := make(chan string)
