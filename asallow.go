@@ -18,6 +18,7 @@ const PREFIX_URI = "https://stat.ripe.net/data/announced-prefixes/data.json?reso
 
 var ipset_count int = 0
 var ipset_string string = ""
+var ipset6_string string = ""
 
 type cfg struct {
 	Main struct {
@@ -59,29 +60,22 @@ func getAS(ASnumber string) []byte {
 }
 
 func doipset() {
-	cmd := exec.Command("ipset", "-!", "create", "AS_allow", "hash:net", "comment")
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("ipset failed to execute ipset -! create AS_allow hash:net comment")
-	}
-	cmd = exec.Command("ipset", "-!", "create", "AS_allow_swap", "hash:net", "comment")
-	cmd.Run()
-	if err != nil {
-		log.Fatal("ipset failed to execute ipset -! create AS_allow_swap hash:net comment")
-	}
-	cmd = exec.Command("ipset", "-!", "restore")
+    ipset_header := "create AS_allow hash:net family inet comment\n"
+    ipset_header += "create AS_allow6 hash:net family inet6 comment\n"
+    ipset_header += "create AS_allow_swap hash:net family inet comment\n"
+    ipset_header += "create AS_allow_swap6 hash:net family inet6 comment\n"
+    ipset_footer := "swap AS_allow AS_allow_swap\n"
+    ipset_footer += "swap AS_allow6 AS_allow_swap6\n"
+    ipset_footer += "destroy AS_allow_swap\n"
+    ipset_footer += "destroy AS_allow_swap6\n"
+    ipset_string = ipset_header + ipset_string + ipset_footer
+	cmd := exec.Command("ipset", "-!", "restore")
 	cmd.Stdin = strings.NewReader(ipset_string)
-	err = cmd.Run()
+	out,err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatal("ipset restore failed", err)
+		log.Println("ipset restore failed (see below)")
+        log.Fatal(string(out))
 	}
-	cmd = exec.Command("ipset", "swap", "AS_allow", "AS_allow_swap")
-	cmd.Run()
-	if err != nil {
-		log.Fatal("ipset could not swap AS_allow with AS_allow_swap")
-	}
-	cmd = exec.Command("ipset", "destroy", "AS_allow_swap")
-	cmd.Run()
 }
 
 func parseBody(body []byte, ASnumber string, sc chan string) {
@@ -100,7 +94,10 @@ func parseBody(body []byte, ASnumber string, sc chan string) {
 		if strings.Contains(mapstring["prefix"].(string), "::") != true {
 			ipset_string += "add AS_allow_swap " + mapstring["prefix"].(string) + " comment AS" + ASnumber + "\n"
 			ipset_count += 1
-		}
+		} else { // ipv6
+			ipset_string += "add AS_allow_swap6 " + mapstring["prefix"].(string) + " comment AS" + ASnumber + "\n"
+			ipset_count += 1
+        }
 	}
 	//fmt.Println("starting thread for: "+ASnumber)
 	sc <- ipset_string
@@ -136,5 +133,6 @@ func main() {
 	addAllowed(cfg.Main.Allow)
 	doipset()
 
-	fmt.Printf("%v ip addresses added\n", ipset_count)
+	fmt.Printf("%v subnets added\n", ipset_count)
+	fmt.Println("AS_allow and AS_allow6 ipset created/modified")
 }
