@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
-    "net"
 )
 
 const PREFIX_URI = "https://stat.ripe.net/data/announced-prefixes/data.json?resource="
@@ -29,7 +29,7 @@ type config struct {
 }
 
 func readconfig(cfgfile string) config {
-    var cfg config
+	var cfg config
 	content, err := ioutil.ReadFile(cfgfile)
 	if err != nil {
 		log.Fatal(err)
@@ -54,34 +54,33 @@ func getAS(ASnumber string) []byte {
 	return body
 }
 
-func isIpOrCidr (ipcidr string) *net.IP {
-    ip,_,err := net.ParseCIDR(ipcidr)
-    if (err != nil) {
-        ip = net.ParseIP(ipcidr)
-        if (ip == nil) {
-            return nil
-        }
-    }
-    return &ip
+func isIpOrCidr(ipcidr string) *net.IP {
+	ip, _, err := net.ParseCIDR(ipcidr)
+	if err != nil {
+		ip = net.ParseIP(ipcidr)
+		if ip == nil {
+			return nil
+		}
+	}
+	return &ip
 }
 
-
 func doipset() {
-    ipset_header := "create AS_allow hash:net family inet comment\n"
-    ipset_header += "create AS_allow6 hash:net family inet6 comment\n"
-    ipset_header += "create AS_allow_swap hash:net family inet comment\n"
-    ipset_header += "create AS_allow_swap6 hash:net family inet6 comment\n"
-    ipset_footer := "swap AS_allow AS_allow_swap\n"
-    ipset_footer += "swap AS_allow6 AS_allow_swap6\n"
-    ipset_footer += "destroy AS_allow_swap\n"
-    ipset_footer += "destroy AS_allow_swap6\n"
-    ipset_string = ipset_header + ipset_string + ipset_footer
+	ipset_header := "create AS_allow hash:net family inet comment\n"
+	ipset_header += "create AS_allow6 hash:net family inet6 comment\n"
+	ipset_header += "create AS_allow_swap hash:net family inet comment\n"
+	ipset_header += "create AS_allow_swap6 hash:net family inet6 comment\n"
+	ipset_footer := "swap AS_allow AS_allow_swap\n"
+	ipset_footer += "swap AS_allow6 AS_allow_swap6\n"
+	ipset_footer += "destroy AS_allow_swap\n"
+	ipset_footer += "destroy AS_allow_swap6\n"
+	ipset_string = ipset_header + ipset_string + ipset_footer
 	cmd := exec.Command("ipset", "-!", "restore")
 	cmd.Stdin = strings.NewReader(ipset_string)
-	out,err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Println("ipset restore failed (see below)")
-        log.Fatal(string(out))
+		log.Fatal(string(out))
 	}
 }
 
@@ -98,18 +97,18 @@ func parseBody(body []byte, ASnumber string, sc chan string) {
 	prefixes_array := prefixes.([]interface{})
 	for _, prefix_element := range prefixes_array {
 		mapstring = prefix_element.(map[string]interface{})
-        prefix := mapstring["prefix"].(string)
-        ip := isIpOrCidr(prefix) // input validation
-        if ip != nil { // it really is an IP 
-            if ip.To4() != nil { // is it IPv4
-                ipset_string += "add AS_allow_swap " + prefix + " comment AS" + ASnumber + "\n"
-            } else { // ipv6
-                ipset_string += "add AS_allow_swap6 " + prefix + " comment AS" + ASnumber + "\n"
-            }
-            ipset_count += 1
-        } else {
-            log.Println("not an ip (range): "+prefix)
-        }
+		prefix := mapstring["prefix"].(string)
+		ip := isIpOrCidr(prefix) // input validation
+		if ip != nil {           // it really is an IP
+			if ip.To4() != nil { // is it IPv4
+				ipset_string += "add AS_allow_swap " + prefix + " comment AS" + ASnumber + "\n"
+			} else { // ipv6
+				ipset_string += "add AS_allow_swap6 " + prefix + " comment AS" + ASnumber + "\n"
+			}
+			ipset_count += 1
+		} else {
+			log.Println("not an ip (range): " + prefix)
+		}
 	}
 	//fmt.Println("starting thread for: "+ASnumber)
 	sc <- ipset_string
@@ -117,17 +116,17 @@ func parseBody(body []byte, ASnumber string, sc chan string) {
 
 func addAllowed(allowed []string) {
 	for _, el := range allowed {
-        ip := isIpOrCidr(el)
-        if ip != nil { //really an IP
-            if ip.To4() != nil {
-                ipset_string += "add AS_allow_swap " + el + " comment \"read from asallow.conf\"\n"
-            } else {
-                ipset_string += "add AS_allow_swap6 " + el + " comment \"read from asallow.conf\"\n"
-            }
-            ipset_count += 1
-        } else {
-            log.Println("not an ip (range): "+el)
-        }
+		ip := isIpOrCidr(el)
+		if ip != nil { //really an IP
+			if ip.To4() != nil {
+				ipset_string += "add AS_allow_swap " + el + " comment \"read from asallow.conf\"\n"
+			} else {
+				ipset_string += "add AS_allow_swap6 " + el + " comment \"read from asallow.conf\"\n"
+			}
+			ipset_count += 1
+		} else {
+			log.Println("not an ip (range): " + el)
+		}
 	}
 }
 
