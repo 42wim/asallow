@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+    "net"
 )
 
 const PREFIX_URI = "https://stat.ripe.net/data/announced-prefixes/data.json?resource="
@@ -53,6 +54,18 @@ func getAS(ASnumber string) []byte {
 	return body
 }
 
+func isIpOrCidr (ipcidr string) *net.IP {
+    ip,_,err := net.ParseCIDR(ipcidr)
+    if (err != nil) {
+        ip = net.ParseIP(ipcidr)
+        if (ip == nil) {
+            return nil
+        }
+    }
+    return &ip
+}
+
+
 func doipset() {
     ipset_header := "create AS_allow hash:net family inet comment\n"
     ipset_header += "create AS_allow6 hash:net family inet6 comment\n"
@@ -85,12 +98,17 @@ func parseBody(body []byte, ASnumber string, sc chan string) {
 	prefixes_array := prefixes.([]interface{})
 	for _, prefix_element := range prefixes_array {
 		mapstring = prefix_element.(map[string]interface{})
-		if strings.Contains(mapstring["prefix"].(string), "::") != true {
-			ipset_string += "add AS_allow_swap " + mapstring["prefix"].(string) + " comment AS" + ASnumber + "\n"
-			ipset_count += 1
-		} else { // ipv6
-			ipset_string += "add AS_allow_swap6 " + mapstring["prefix"].(string) + " comment AS" + ASnumber + "\n"
-			ipset_count += 1
+        prefix := mapstring["prefix"].(string)
+        ip := isIpOrCidr(prefix) // input validation
+        if ip != nil { // it really is an IP 
+            if ip.To4() != nil { // is it IPv4
+                ipset_string += "add AS_allow_swap " + prefix + " comment AS" + ASnumber + "\n"
+            } else { // ipv6
+                ipset_string += "add AS_allow_swap6 " + prefix + " comment AS" + ASnumber + "\n"
+            }
+            ipset_count += 1
+        } else {
+            log.Println("not an ip (range): "+prefix)
         }
 	}
 	//fmt.Println("starting thread for: "+ASnumber)
@@ -99,7 +117,17 @@ func parseBody(body []byte, ASnumber string, sc chan string) {
 
 func addAllowed(allowed []string) {
 	for _, el := range allowed {
-		ipset_string += "add AS_allow_swap " + el + " comment \"read from asallow.conf\"\n"
+        ip := isIpOrCidr(el)
+        if ip != nil { //really an IP
+            if ip.To4() != nil {
+                ipset_string += "add AS_allow_swap " + el + " comment \"read from asallow.conf\"\n"
+            } else {
+                ipset_string += "add AS_allow_swap6 " + el + " comment \"read from asallow.conf\"\n"
+            }
+            ipset_count += 1
+        } else {
+            log.Println("not an ip (range): "+el)
+        }
 	}
 }
 
@@ -111,10 +139,10 @@ func main() {
 	flag.Parse()
 	sc := make(chan string)
 	cfg := readconfig(*cfgfile)
+	addAllowed(cfg.Main.Allow)
 	for i, ASN := range cfg.Main.ASN {
-		if i > 0 && i%2 == 0 {
+		if i > 0 && i%2 == 0 { // max 2 rqs
 			time.Sleep(time.Second)
-			//        fmt.Println("max 2 rqs")
 		}
 		go func(ASN string) {
 			body := getAS(ASN)
@@ -124,7 +152,6 @@ func main() {
 	for range cfg.Main.ASN {
 		ipset_string += <-sc
 	}
-	addAllowed(cfg.Main.Allow)
 	doipset()
 
 	fmt.Printf("%v subnets added\n", ipset_count)
