@@ -20,26 +20,20 @@ var ipset_count int = 0
 var ipset_string string = ""
 var ipset6_string string = ""
 
-type cfg struct {
+type config struct {
 	Main struct {
 		Allow []string
 		ASN   []string
 	}
 }
 
-func readconfig(cfgfile string) cfg {
-	data, err := ioutil.ReadFile(cfgfile)
+func readconfig(cfgfile string) config {
+    var cfg config
+	content, err := ioutil.ReadFile(cfgfile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfgStr := string(data)
-	cfg := struct {
-		Main struct {
-			Allow []string
-			ASN   []string
-		}
-	}{}
-	err = gcfg.ReadStringInto(&cfg, cfgStr)
+	err = gcfg.ReadStringInto(&cfg, string(content))
 	if err != nil {
 		log.Fatal("Failed to parse "+cfgfile+":", err)
 	}
