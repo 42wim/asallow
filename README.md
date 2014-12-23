@@ -14,6 +14,17 @@ E.g. to only allow ssh access from specific countries.
 * root/sudo access
 * iptables
 
+## Building it
+Install go (binaries on https://golang.org/dl/ or use your favorite package manager)  
+Set your GOPATH (https://code.google.com/p/go-wiki/wiki/GOPATH)  
+run:
+
+```
+go get github.com/42wim/asallow  
+```
+
+asallow will be found in $GOPATH/bin/asallow
+
 ## Config
 By default it searches for asallow.conf in the current directory, you can also explicitly specify a config with -conf switch.  
 It will not run without a config file.
