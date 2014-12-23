@@ -5,7 +5,8 @@ Asallow creates 2 ipsets (AS_allow and AS_allow6), and populates them based on d
 (https://stat.ripe.net/index/documentation/interfaces-apis) (and optionally your own manually specified subnets)
 
 ## Why
-An 'easy way' to whitelist providers and/or countries. E.g. to only allow ssh access from specific countries.
+An 'easy way' to whitelist providers and/or countries.  
+E.g. to only allow ssh access from specific countries.
 
 ## Requirements
 * Linux kernel >= 2.6.32 supporting ipset (net:hash) (only tested on 3.17.x)
@@ -14,7 +15,8 @@ An 'easy way' to whitelist providers and/or countries. E.g. to only allow ssh ac
 * iptables
 
 ## Config
-By default it searches for asallow.conf in the current directory, you can also explicitly specify a config with -conf switch. It will not run without a config file.
+By default it searches for asallow.conf in the current directory, you can also explicitly specify a config with -conf switch.  
+It will not run without a config file.
 
 ```
  ./asallow -h
@@ -24,11 +26,19 @@ Usage of ./asallow:
 Config file as a [main] section and multivalue allow, ASN or country statements. Any combination works.
 
 * allow=range|ip
-  specify an IPv4 or IPv6 ip address or CIDR range. This will always be added to the ipset AS_allow or AS_allow6 (for IPv6)
+
+  Specify an IPv4 or IPv6 ip address or CIDR range.  
+  This will always be added to the ipset AS_allow or AS_allow6 (for IPv6)
+
 * ASN=AS number
-  specify an AS number. Ranges (currently) announced by this AS will be added to the ipset AS_allow or AS_allow6 (for IPv6) (AS number: see http://en.wikipedia.org/wiki/Autonomous_System_(Internet))
+
+  Specify an AS number.  
+  Ranges (currently) announced by this AS will be added to the ipset AS_allow or AS_allow6 (for IPv6) (AS number: see http://en.wikipedia.org/wiki/Autonomous_System_(Internet))
+
 * country=country code
-  2-digit ISO-3166 country code. Ranges (currently) associated with the selected country will be added to the ipset AS_allow or AS_allow6 (for IPv6)
+
+  2-digit ISO-3166 country code.  
+  Ranges (currently) associated with the selected country will be added to the ipset AS_allow or AS_allow6 (for IPv6)
 
 ### Example configuration
 ```
