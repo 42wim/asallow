@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -31,9 +32,10 @@ type ipsetInfo struct {
 
 type config struct {
 	Main struct {
-		Allow   []string
-		ASN     []string
-		Country []string
+		Allow     []string
+		ASN       []string
+		Country   []string
+		Nocomment bool
 	}
 }
 
@@ -81,7 +83,7 @@ func isIpOrCidr(ipcidr string) *net.IP {
 	return &ip
 }
 
-func doipset() {
+func doipset(cfg config) {
 	ipset_header := "create AS_allow hash:net family inet comment\n"
 	ipset_header += "create AS_allow6 hash:net family inet6 comment\n"
 	ipset_header += "create AS_allow_swap hash:net family inet comment\n"
@@ -91,6 +93,10 @@ func doipset() {
 	ipset_footer += "destroy AS_allow_swap\n"
 	ipset_footer += "destroy AS_allow_swap6\n"
 	ipset_string := ipset_header + ipset.v4 + ipset.v6 + ipset_footer
+	if cfg.Main.Nocomment {
+		re := regexp.MustCompile(" comment.*")
+		ipset_string = re.ReplaceAllString(ipset_string, "")
+	}
 	cmd := exec.Command("ipset", "-!", "restore")
 	cmd.Stdin = strings.NewReader(ipset_string)
 	out, err := cmd.CombinedOutput()
@@ -202,7 +208,7 @@ func main() {
 
 	// add always the static entries
 	addAllowed(cfg.Main.Allow)
-	doipset()
+	doipset(cfg)
 
 	for _, resource := range resources {
 		for i, uri_id := range resource.cfg {
@@ -221,7 +227,7 @@ func main() {
 		<-sc
 	}
 
-	doipset()
+	doipset(cfg)
 
 	fmt.Printf("%v ipv4 / %v ipv6 subnets added\n", ipset.v4count, ipset.v6count)
 	fmt.Println("AS_allow and AS_allow6 ipset created/modified")

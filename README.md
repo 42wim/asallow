@@ -9,8 +9,12 @@ An 'easy way' to whitelist providers and/or countries.
 E.g. to only allow ssh access from specific countries.
 
 ## Requirements
-* Linux kernel >= 2.6.32 supporting ipset (net:hash) (only tested on 3.17.x)
-* ipset 6.20+
+* Linux kernel >= 2.6.32 supporting ipset (net:hash) 
+* ipset
+
+  > v6.20 and above for comment support   
+    < 6.20 see 'nocomment' flag in asallow.conf (tested on centos6/rhel6)
+
 * root/sudo access
 * iptables
 
@@ -68,6 +72,9 @@ ASN=6848 #telenet
 country=be
 #country=nl
 #country=fr
+
+#uncomment 'nocomment' for older ipset versions < 6.20 (on centos6/rhel6)
+#nocomment
 ```
 
 ## Running it
