@@ -1,7 +1,6 @@
 package main
 
 import (
-	"code.google.com/p/gcfg"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"code.google.com/p/gcfg"
 )
 
 const PREFIX_URI = "https://stat.ripe.net/data/announced-prefixes/data.json?resource="
@@ -75,7 +76,8 @@ func getURI(uri string) []byte {
 func isIpOrCidr(ipcidr string) *net.IP {
 	ip, _, err := net.ParseCIDR(ipcidr)
 	if err != nil {
-		ip = net.ParseIP(ipcidr)
+		mystr := strings.Split(ipcidr, "-")
+		ip = net.ParseIP(mystr[0])
 		if ip == nil {
 			return nil
 		}
