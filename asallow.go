@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -195,6 +196,7 @@ func main() {
 	if os.Geteuid() != 0 {
 		log.Fatal("This needs to be run as root")
 	}
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	cfgfile := flag.String("conf", "asallow.conf", "a valid config file")
 	flag.Parse()
 
