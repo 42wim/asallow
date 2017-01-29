@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gopkg.in/gcfg.v1"
 	"io/ioutil"
 	"log"
 	"net"
@@ -15,8 +16,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"code.google.com/p/gcfg"
 )
 
 const PREFIX_URI = "https://stat.ripe.net/data/announced-prefixes/data.json?resource="
